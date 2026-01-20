@@ -15,26 +15,15 @@ import yfinance as yf
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 
-# --- ARIZA TESPİT BAĞLANTISI ---
 def verileri_cek():
     try:
-        # 1. Ham veriyi çekmeyi dene
         df = conn.read()
-        
-        # Eğer veri geliyorsa ama boşsa ekranda göster
-        if df is None or df.empty:
-            st.warning("⚠️ Excel bağlandı ama dosyanın içi boş görünüyor!")
-            return []
-            
-        # 2. Sütun isimlerini kontrol et (Küçük/Büyük harf duyarlıdır)
-        # Senin Excel'deki başlıkların tam olarak 'sembol' değilse hata verir
-        st.write("🔍 Excel'de Bulunan Başlıklar:", list(df.columns))
-        
+        # BU SATIR ÇOK ÖNEMLİ: Ekrana ne geldiğini zorla yazdırıyoruz
+        st.info("Robot şu an Excel'e bakıyor...")
+        st.dataframe(df) # Excel'de ne varsa olduğu gibi ekrana basar
         return df.dropna(subset=['sembol']).to_dict('records')
-        
     except Exception as e:
-        # Hata neyse buraya yazacak (Erişim hatası mı, link hatası mı?)
-        st.error(f"🚨 ROBOT HATASI: {e}")
+        st.error(f"Kırmızı Kutu Hatası: {e}")
         return []
 
 
