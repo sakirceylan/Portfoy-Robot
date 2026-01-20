@@ -127,29 +127,20 @@ with st.sidebar:
     
     if st.session_state.get('portfoy'):
         try:
-            # Hangi semboller varsa onları listeye al
-            sembol_listesi = [v['sembol'] for v in st.session_state.portfoy if v.get('sembol')]
+            # Sembolleri hazırla
+            semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
+            # Fiyatları çek (Parantez artık dolu!)
+            p_data = piyasa_verisi_cek(semboller)
+            # Analiz yap
+            df_export = portfoy_analiz(st.session_state.portfoy, p_data)
             
-            # Fiyatları çek (Parantezi asla boş bırakma!)
-            p = piyasa_verisi_cek(sembol_listesi)
-            
-            # Analizi yap
-            df_export = portfoy_analiz(st.session_state.portfoy, p)
-            
-            # Excel'e yaz
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_export.to_excel(writer, index=False, sheet_name='Analiz')
             
-            st.download_button(
-                label="📥 Excel Raporu İndir", 
-                data=output.getvalue(), 
-                file_name="Portfoy_Raporu.xlsx", 
-                mime="application/vnd.ms-excel"
-            )
+            st.download_button(label="📥 Excel Raporu İndir", data=output.getvalue(), file_name="Portfoy_Analiz.xlsx")
         except Exception as e:
             st.error(f"Rapor Hatası: {e}")
-
 
 # 4. Hesaplamalar
 p = piyasa_verisi_cek()
