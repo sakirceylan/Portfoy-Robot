@@ -9,3 +9,4 @@ lxml
 gspread
 google-auth
 streamlit-gsheets-connection
+st-gsheets-connection
