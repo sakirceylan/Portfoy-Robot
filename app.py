@@ -14,15 +14,29 @@ import yfinance as yf
 # Excel Bağlantısı
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+
+# --- ARIZA TESPİT BAĞLANTISI ---
 def verileri_cek():
     try:
-        # Eğer sayfa adın "Sayfa1" veya "Sheet1" değilse, buraya o ismi yaz.
-        # Örneğin sayfa adın "Portfoy" ise: worksheet="Portfoy" yap.
-        df = conn.read() 
+        # 1. Ham veriyi çekmeyi dene
+        df = conn.read()
+        
+        # Eğer veri geliyorsa ama boşsa ekranda göster
+        if df is None or df.empty:
+            st.warning("⚠️ Excel bağlandı ama dosyanın içi boş görünüyor!")
+            return []
+            
+        # 2. Sütun isimlerini kontrol et (Küçük/Büyük harf duyarlıdır)
+        # Senin Excel'deki başlıkların tam olarak 'sembol' değilse hata verir
+        st.write("🔍 Excel'de Bulunan Başlıklar:", list(df.columns))
+        
         return df.dropna(subset=['sembol']).to_dict('records')
+        
     except Exception as e:
-        st.error(f"Excel'e ulaşılamadı. Hata: {e}")
+        # Hata neyse buraya yazacak (Erişim hatası mı, link hatası mı?)
+        st.error(f"🚨 ROBOT HATASI: {e}")
         return []
+
 
 
 def veri_kaydet_excel(yeni_portfoy):
