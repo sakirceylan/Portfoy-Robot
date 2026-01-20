@@ -18,9 +18,12 @@ def verileri_cek():
         df.columns = [str(c).strip().lower() for c in df.columns]
         
         if 'sembol' in df.columns:
-            # Hem .IS ekliyoruz hem de senin isteğin üzerine arka planda sabit tutuyoruz
-            df['sembol'] = df['sembol'].apply(lambda x: str(x).strip().upper())
-            df['sembol'] = df['sembol'].apply(lambda x: x + '.IS' if not x.endswith('.IS') else x)
+            # Önce hücredeki boşlukları temizle ve büyük harf yap
+            df['sembol'] = df['sembol'].astype(str).str.strip().str.upper()
+            
+            # EĞER içinde '=' varsa (Altın/Gümüş gibi) dokunma, 
+            # YOKSA ve sonu .IS değilse .IS ekle.
+            df['sembol'] = df['sembol'].apply(lambda x: x if '=' in x or x.endswith('.IS') else x + '.IS')
             
         return df.dropna(subset=['sembol']).to_dict('records')
     except Exception as e:
