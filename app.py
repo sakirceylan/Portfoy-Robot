@@ -121,17 +121,19 @@ with st.sidebar:
         st.success(f"{s_in} Başarıyla Eklendi!")
         st.rerun()
         
-  # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
+ # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
     st.divider()
     st.subheader("📑 Raporlama")
     
     if st.session_state.get('portfoy'):
         try:
-            # Sembolleri hazırla
+            # 1. Sembolleri hazırla
             semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
-            # Fiyatları çek (Parantez artık dolu!)
+            
+            # 2. Fiyatları çek (Rapor için)
             p_data = piyasa_verisi_cek(semboller)
-            # Analiz yap
+            
+            # 3. Analiz yap
             df_export = portfoy_analiz(st.session_state.portfoy, p_data)
             
             output = io.BytesIO()
@@ -142,12 +144,18 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Rapor Hatası: {e}")
 
-# 4. Hesaplamalar
-p = piyasa_verisi_cek()
-df = portfoy_analiz(st.session_state.portfoy, p)
-
-# 5. Ana Ekran
-st.title("💹 Finansal Portföy Yönetimi")
+    # --- 4. HESAPLAMALAR (ANA EKRAN İÇİN) ---
+    # BURASI ÇOK KRİTİK: Parantezin içi dolu olmalı!
+    if st.session_state.get('portfoy'):
+        ana_semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
+        p = piyasa_verisi_cek(ana_semboller) # BOŞ PARANTEZİ DOLDURDUK
+        df = portfoy_analiz(st.session_state.portfoy, p)
+        
+        # --- 5. ANA EKRAN GÖRSELLEŞTİRME ---
+        st.title("💹 Finansal Portföy Yönetimi")
+        # Buradan sonra tablolarını ve grafiklerini df kullanarak çizdirebilirsin.
+    else:
+        st.info("Portföyünüzü görmek için lütfen Google Sheets verilerini yükleyin.")
 
 if not df.empty:
     toplam_tl = df['Değer_TL'].sum()
