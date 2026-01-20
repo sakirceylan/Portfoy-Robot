@@ -28,7 +28,7 @@ def veri_kaydet_excel(yeni_portfoy):
     df = pd.DataFrame(yeni_portfoy)
     conn.update(data=df)        
         
-# Sayfa açıldığında verileri yükle
+# Eski veri_yukle() yerine direkt Excel'den çekiyoruz
 if 'portfoy' not in st.session_state:
     st.session_state.portfoy = verileri_cek()
 
@@ -109,7 +109,7 @@ with st.sidebar:
             "alim_hedefi": 0.0      # Gizli varsayılan
         })
         from data_engine import veri_kaydet
-        veri_kaydet(st.session_state.portfoy)
+        veri_kaydet_excel(st.session_state.portfoy)
         st.success(f"{s_in} Başarıyla Eklendi!")
         st.rerun()
         
@@ -280,7 +280,7 @@ if not df.empty:
                                 
                                 # 4. VERİTABANINA KAYDET
                                 from data_engine import veri_kaydet
-                                veri_kaydet(st.session_state.portfoy)
+                                veri_kaydet_excel(st.session_state.portfoy)
                                 
                                 # 5. SAYFAYI YENİLE (Mailin tekrar tekrar gitmesini engeller)
                                 st.rerun()
@@ -351,13 +351,13 @@ if not df.empty:
                     yeni_h = st.number_input("Yeni Hedef Fiyat:", min_value=0.0, step=0.1)
                     if st.button("Hedefi Kaydet"):
                         st.session_state.portfoy[sec_h]['hedef'] = yeni_h
-                        veri_kaydet(st.session_state.portfoy); st.rerun()
+                        veri_kaydet_excel(st.session_state.portfoy); st.rerun()
             with col2:
                 with st.expander("🗑️ Varlık Yönetimi (Silme)"):
                     silinecek = st.multiselect("Seç:", options=b_df.index, format_func=lambda x: f"{df.loc[x, 'sembol']}")
                     if st.button("Seçilenleri Sil", type="primary"):
                         st.session_state.portfoy = [v for i, v in enumerate(st.session_state.portfoy) if i not in silinecek]
-                        veri_kaydet(st.session_state.portfoy); st.rerun()
+                        veri_kaydet_excel(st.session_state.portfoy); st.rerun()
             
     with t3:
         # Halka arz takvimi (Dokunulmadı)
@@ -466,7 +466,7 @@ if not df.empty:
                         st.session_state.portfoy[h_idx]['alim_hedefi'] = h_fiyat
                     
                     from data_engine import veri_kaydet
-                    veri_kaydet(st.session_state.portfoy)
+                    veri_kaydet_excel(st.session_state.portfoy)
                     st.success(f"✅ {df.loc[h_idx, 'sembol']} için alarm kuruldu!")
                     st.rerun()
             else:
@@ -536,7 +536,7 @@ if not df.empty:
                     st.session_state.portfoy[secili_idx]['satis_hedefi'] = round(hedef_satis, 2)
                     st.session_state.portfoy[secili_idx]['alim_hedefi'] = round(stop_fiyat, 2)
                     from data_engine import veri_kaydet
-                    veri_kaydet(st.session_state.portfoy)
+                    veri_kaydet_excel(st.session_state.portfoy)
                     
                     # 2. Mail Gönder (Burada mail fonksiyonunu çağırıyoruz)
                     mail_konu = f"🤖 Robotik Strateji Kuruldu: {h_data['sembol']}"
