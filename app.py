@@ -7,33 +7,26 @@ import io # Raporlama için gerekli
 import smtplib
 from email.mime.text import MIMEText
 import datetime
-
-from streamlit_gsheets import GSheetsConnection
 import yfinance as yf
 
-# Excel Bağlantısı
-conn = st.connection("gsheets", type=GSheetsConnection)
+from streamlit_gsheets import GSheetsConnection
 
+# BAĞLANTIYI BURADAN ZORLA YAPIYORUZ
+spreadsheet_url = "https://docs.google.com/spreadsheets/d/1zL8_njN-CTRB3hiOig-BCs0zAYwXPQc1q4s4WuNoxJA"
+
+try:
+    # Secrets'a bakmadan direkt bu linke git diyoruz
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except:
+    st.error("Bağlantı ayarı yapılamadı.")
 
 def verileri_cek():
     try:
-        # ttl=0 diyerek her saniye taze veri almasını sağlıyoruz
-        df = conn.read(worksheet="Sayfa1", ttl=0)
-        
-        if df is not None and not df.empty:
-            # 1. Sütun isimlerindeki boşlukları temizle ve küçük harfe çevir
+        # Linki burada direkt veriyoruz, hata şansı sıfır
+        df = conn.read(spreadsheet=spreadsheet_url, worksheet="Sayfa1", ttl=0)
+        if df is not None:
             df.columns = [str(c).strip().lower() for c in df.columns]
-            
-            # 2. Excel'deki mavi linkli hisseleri (sembol) düz metne çevir
-            # (Bazı durumlarda link olması robotu bozabiliyor)
-            if 'sembol' in df.columns:
-                df['sembol'] = df['sembol'].astype(str).str.strip()
-            
-            # 3. Boş satırları tamamen temizle
-            df = df.dropna(subset=['sembol'])
-            
-            # Başarılıysa veriyi dön
-            return df.to_dict('records')
+            return df.dropna(subset=['sembol']).to_dict('records')
         return []
     except Exception as e:
         st.error(f"Excel Okuma Hatası: {e}")
