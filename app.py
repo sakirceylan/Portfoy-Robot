@@ -18,7 +18,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def verileri_cek():
     try:
         # Excel'i oku
-        df = conn.read()
+        df = conn.read(worksheet="Sayfa1", ttl=0)
         
         # Eğer Excel tamamen boş değilse ama robot göremiyorsa zorla göster
         if df is not None:
