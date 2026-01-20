@@ -11,24 +11,23 @@ import yfinance as yf
 
 def verileri_cek():
     try:
-        # Excel dosyanın "Dışa Aktarılmış CSV" hali
         sheet_id = "1zL8_njN-CTRB3hiOig-BCs0zAYwXPQc1q4s4WuNoxJA"
         url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
         
         df = pd.read_csv(url)
         df.columns = [str(c).strip().lower() for c in df.columns]
         
-        # Senin özel isteğin: Sembollerin sonuna .IS ekle (Eğer yoksa)
         if 'sembol' in df.columns:
-            df['sembol'] = df['sembol'].apply(lambda x: str(x) + '.IS' if not str(x).replace('.is', '').endswith('.IS') else x)
+            # Hem .IS ekliyoruz hem de senin isteğin üzerine arka planda sabit tutuyoruz
+            df['sembol'] = df['sembol'].apply(lambda x: str(x).strip().upper())
+            df['sembol'] = df['sembol'].apply(lambda x: x + '.IS' if not x.endswith('.IS') else x)
             
         return df.dropna(subset=['sembol']).to_dict('records')
     except Exception as e:
         st.error(f"Veri çekme hatası: {e}")
         return []
 
-# --- KRİTİK NOKTA: Fonksiyonun bittiği yer burası (girinti yok) ---
-# Veriyi burada çekip değişkene atıyoruz
+# DİKKAT: Bu satır fonksiyonun içinde olmamalı, en solda (başta) olmalı!
 portfoy_verileri = verileri_cek()
 
 
