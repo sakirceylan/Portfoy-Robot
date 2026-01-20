@@ -14,15 +14,17 @@ import yfinance as yf
 # Excel Bağlantısı
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Excel'den hisseleri çekme fonksiyonu
 def verileri_cek():
-    """Excel'den verileri çeker."""
     try:
-        df = conn.read()
+        # Eğer sayfa adın "Sayfa1" veya "Sheet1" değilse, buraya o ismi yaz.
+        # Örneğin sayfa adın "Portfoy" ise: worksheet="Portfoy" yap.
+        df = conn.read() 
         return df.dropna(subset=['sembol']).to_dict('records')
-    except:
+    except Exception as e:
+        st.error(f"Excel'e ulaşılamadı. Hata: {e}")
         return []
-        
+
+
 def veri_kaydet_excel(yeni_portfoy):
     """Excel'i günceller."""
     df = pd.DataFrame(yeni_portfoy)
