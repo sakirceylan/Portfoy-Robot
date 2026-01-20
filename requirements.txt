@@ -1,12 +1,4 @@
 streamlit
 pandas
 yfinance
-plotly
-xlsxwriter
-beautifulsoup4
-requests
-lxml
-gspread
-google-auth
-streamlit-gsheets-connection
 st-gsheets-connection
