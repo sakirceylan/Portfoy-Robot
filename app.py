@@ -17,15 +17,24 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def verileri_cek():
     try:
+        # Excel'i oku
         df = conn.read()
-        # BU SATIR ÇOK ÖNEMLİ: Ekrana ne geldiğini zorla yazdırıyoruz
-        st.info("Robot şu an Excel'e bakıyor...")
-        st.dataframe(df) # Excel'de ne varsa olduğu gibi ekrana basar
-        return df.dropna(subset=['sembol']).to_dict('records')
-    except Exception as e:
-        st.error(f"Kırmızı Kutu Hatası: {e}")
+        
+        # Eğer Excel tamamen boş değilse ama robot göremiyorsa zorla göster
+        if df is not None:
+            # Sütun isimlerini küçük harfe çevirelim (Hata payını azaltır)
+            df.columns = [str(c).strip().lower() for c in df.columns]
+            
+            # Eğer hala 'sembol' sütunu yoksa, ilk sütunu 'sembol' kabul et
+            if 'sembol' not in df.columns:
+                st.warning(f"Dikkat: Excel'de 'sembol' başlığı bulunamadı. Mevcut başlıklar: {list(df.columns)}")
+            
+            # Boş satırları temizle ve listeye çevir
+            return df.to_dict('records')
         return []
-
+    except Exception as e:
+        st.error(f"Bağlantı Var Ama Veri Okunamadı: {e}")
+        return []
 
 
 def veri_kaydet_excel(yeni_portfoy):
