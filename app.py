@@ -17,23 +17,26 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def verileri_cek():
     try:
-        # Excel'i oku
+        # ttl=0 diyerek her saniye taze veri almasını sağlıyoruz
         df = conn.read(worksheet="Sayfa1", ttl=0)
         
-        # Eğer Excel tamamen boş değilse ama robot göremiyorsa zorla göster
-        if df is not None:
-            # Sütun isimlerini küçük harfe çevirelim (Hata payını azaltır)
+        if df is not None and not df.empty:
+            # 1. Sütun isimlerindeki boşlukları temizle ve küçük harfe çevir
             df.columns = [str(c).strip().lower() for c in df.columns]
             
-            # Eğer hala 'sembol' sütunu yoksa, ilk sütunu 'sembol' kabul et
-            if 'sembol' not in df.columns:
-                st.warning(f"Dikkat: Excel'de 'sembol' başlığı bulunamadı. Mevcut başlıklar: {list(df.columns)}")
+            # 2. Excel'deki mavi linkli hisseleri (sembol) düz metne çevir
+            # (Bazı durumlarda link olması robotu bozabiliyor)
+            if 'sembol' in df.columns:
+                df['sembol'] = df['sembol'].astype(str).str.strip()
             
-            # Boş satırları temizle ve listeye çevir
+            # 3. Boş satırları tamamen temizle
+            df = df.dropna(subset=['sembol'])
+            
+            # Başarılıysa veriyi dön
             return df.to_dict('records')
         return []
     except Exception as e:
-        st.error(f"Bağlantı Var Ama Veri Okunamadı: {e}")
+        st.error(f"Excel Okuma Hatası: {e}")
         return []
 
 
