@@ -15,35 +15,39 @@ def veri_yukle():
 def veri_kaydet(v):
     with open("portfoy.json", "w") as f: json.dump(v, f)
 
-def piyasa_verisi_cek():
-    m_list = {"DOLAR": "USDTRY=X", "EURO": "EURTRY=X", "ONS_ALTIN": "GC=F", "ONS_GUMUS": "SI=F"}
-    d = {"DOLAR": 0.0, "EURO": 0.0, "ALTIN": 0.0, "GÜMÜŞ": 0.0}
-    for k in ["DOLAR", "EURO"]:
+def piyasa_verisi_cek(semboller):
+    fiyatlar = {}
+    try:
+        # Önce Dolar kurunu çekelim
+        usd_try_data = yf.download("USDTRY=X", period="1d", interval="1m")
+        usd_try = usd_try_data['Close'].iloc[-1]
+    except:
+        usd_try = 34.0  # Eğer kur çekilemezse hata vermesin diye sabit bir rakam (örnek)
+
+    for sembol in semboller:
         try:
-            h = yf.Ticker(m_list[k]).history(period="5d")
-            if not h.empty: d[k] = round(float(h['Close'].dropna().iloc[-1]), 2)
-        except: pass
-    
-    try:
-        g_altin = yf.Ticker("GAU-TRY.IS").history(period="5d")
-        if not g_altin.empty and g_altin['Close'].iloc[-1] > 0:
-            d["ALTIN"] = round(float(g_altin['Close'].dropna().iloc[-1]), 2)
-        else:
-            ons = yf.Ticker(m_list["ONS_ALTIN"]).history(period="5d")
-            ons_fiyat = float(ons['Close'].iloc[-1]) if not ons.empty else 0.0
-            d["ALTIN"] = round((ons_fiyat / 31.1035) * d["DOLAR"], 2)
-    except: pass
-    
-    try:
-        g_gumus = yf.Ticker("SILVER-TRY.IS").history(period="5d")
-        if not g_gumus.empty and g_gumus['Close'].iloc[-1] > 0:
-            d["GÜMÜŞ"] = round(float(g_gumus['Close'].dropna().iloc[-1]), 2)
-        else:
-            ons_g = yf.Ticker(m_list["ONS_GUMUS"]).history(period="5d")
-            ons_g_fiyat = float(ons_g['Close'].iloc[-1]) if not ons_g.empty else 0.0
-            d["GÜMÜŞ"] = round((ons_g_fiyat / 31.1035) * d["DOLAR"], 2)
-    except: pass
-    return d
+            # Tek bir sembol için fiyat çek
+            ticker = yf.Ticker(sembol)
+            veri = ticker.history(period="1d")
+            
+            if not veri.empty:
+                guncel_fiyat = veri['Close'].iloc[-1]
+
+                # --- İŞTE O EKLEYECEĞİN KISIM BURASI ---
+                if sembol == "GC=F": # Ons Altın -> Gram Altın TL
+                    guncel_fiyat = (guncel_fiyat / 31.1034768) * usd_try
+                elif sembol == "SI=F": # Ons Gümüş -> Gram Gümüş TL
+                    guncel_fiyat = (guncel_fiyat / 31.1034768) * usd_try
+                # ----------------------------------------
+
+                fiyatlar[sembol] = guncel_fiyat
+            else:
+                fiyatlar[sembol] = 0
+        except Exception as e:
+            print(f"Hata: {sembol} çekilemedi -> {e}")
+            fiyatlar[sembol] = 0
+            
+    return fiyatlar
 
 def portfoy_analiz(portfoy_listesi, p):
     if not portfoy_listesi: return pd.DataFrame()
