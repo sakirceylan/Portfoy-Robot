@@ -18,27 +18,25 @@ def piyasa_verisi_cek(semboller):
     fiyatlar = {}
     if not semboller: return fiyatlar
     try:
-        # 2026 Güncel Dolar Kuru
+        # 2026 Dolar Kuru Çekimi
         dolar_verisi = yf.download("USDTRY=X", period="1d", interval="1m")
         usd_try = dolar_verisi['Close'].iloc[-1]
     except:
-        usd_try = 45.50 # Hata olursa varsayılan
+        usd_try = 45.50
 
     for s in semboller:
         try:
             if not s or str(s) == 'nan': continue
-            # Temizleme
             s_clean = str(s).strip().upper()
             
-            # Veri Çekme
+            # Veriyi çek
             veri = yf.download(s_clean, period="1d", interval="1m")
             if not veri.empty:
                 fiyat = veri['Close'].iloc[-1]
                 
-                # --- ALTIN/GÜMÜŞ TL ÇEVİRİ ---
-                if "GC=F" in s_clean:
-                    fiyatlar[s_clean] = (fiyat / 31.1034) * usd_try
-                elif "SI=F" in s_clean:
+                # --- ALTIN/GÜMÜŞ TL GRAMA ÇEVİR ---
+                if "GC=F" in s_clean or "SI=F" in s_clean:
+                    # Ons fiyatını Gram TL'ye çevir (Ons / 31.1034 * Dolar)
                     fiyatlar[s_clean] = (fiyat / 31.1034) * usd_try
                 else:
                     fiyatlar[s_clean] = fiyat
@@ -47,37 +45,30 @@ def piyasa_verisi_cek(semboller):
         except:
             fiyatlar[s_clean] = 0.0
     
-    # Sistemin hata vermemesi için yedek anahtarlar
-    fiyatlar['USDTRY=X'] = usd_try
     return fiyatlar
 
 def portfoy_analiz(portfoy_listesi, p):
     if not portfoy_listesi: return pd.DataFrame()
     df = pd.DataFrame(portfoy_listesi)
     
-    # Sütun isimlerini küçült (Hata önleyici)
+    # Sütun isimlerini küçük harfe sabitle (Hata önleyici)
     df.columns = [str(c).lower().strip() for c in df.columns]
     
-    g_list = []
+    guncel_fiyatlar = []
     for _, row in df.iterrows():
         sem = str(row.get('sembol', '')).strip().upper()
-        tip = str(row.get('tip', '')).lower()
         
-        # Akıllı Fiyat Bulucu
-        fiyat = 0.0
-        if "GC=F" in sem or "altin" in tip:
-            fiyat = p.get("GC=F", 0.0)
-        elif "SI=F" in sem or "gümüş" in tip:
-            fiyat = p.get("SI=F", 0.0)
-        else:
-            fiyat = p.get(sem, 0.0)
-            
-        g_list.append(fiyat)
+        # SÖZLÜKTE ARA: Eğer sözlükte (p) bu sembol varsa fiyatını al, yoksa 0.0 yaz
+        # Bu satır sayesinde 'KeyError' (ALTIN hatası) artık ASLA oluşmaz.
+        fiyat = p.get(sem, 0.0)
+        guncel_fiyatlar.append(fiyat)
     
-    df['güncel'] = g_list
+    df['güncel'] = guncel_fiyatlar
     df['değer_tl'] = df['güncel'] * df['adet'].astype(float)
     df['maliyet_toplam'] = df['maliyet'].astype(float) * df['adet'].astype(float)
     df['kar_tl'] = df['değer_tl'] - df['maliyet_toplam']
+    
+    # Sıfıra bölünme hatasını engelle (+0.0001)
     df['% değişim'] = (df['kar_tl'] / (df['maliyet_toplam'] + 0.0001)) * 100
     
     return df
