@@ -6,3 +6,6 @@ xlsxwriter
 beautifulsoup4
 requests
 lxml
+gspread
+google-auth
+streamlit-gsheets-connection
