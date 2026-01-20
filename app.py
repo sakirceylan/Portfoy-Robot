@@ -16,9 +16,18 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Excel'den hisseleri çekme fonksiyonu
 def verileri_cek():
-    df = conn.read()
-    return df.to_dict('records')
-
+    """Excel'den verileri çeker."""
+    try:
+        df = conn.read()
+        return df.dropna(subset=['sembol']).to_dict('records')
+    except:
+        return []
+        
+def veri_kaydet_excel(yeni_portfoy):
+    """Excel'i günceller."""
+    df = pd.DataFrame(yeni_portfoy)
+    conn.update(data=df)        
+        
 # Sayfa açıldığında verileri yükle
 if 'portfoy' not in st.session_state:
     st.session_state.portfoy = verileri_cek()
