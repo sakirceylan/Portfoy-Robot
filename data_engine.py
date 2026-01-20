@@ -18,25 +18,24 @@ def piyasa_verisi_cek(semboller):
     fiyatlar = {}
     if not semboller: return fiyatlar
     try:
-        # 2026 Dolar Kuru Çekimi
+        # Dolar Kurunu Çek
         dolar_verisi = yf.download("USDTRY=X", period="1d", interval="1m")
         usd_try = dolar_verisi['Close'].iloc[-1]
     except:
-        usd_try = 45.50
+        usd_try = 45.0  # 2026 yılı için varsayılan kur
 
     for s in semboller:
         try:
             if not s or str(s) == 'nan': continue
             s_clean = str(s).strip().upper()
             
-            # Veriyi çek
+            # Veri Çek
             veri = yf.download(s_clean, period="1d", interval="1m")
             if not veri.empty:
                 fiyat = veri['Close'].iloc[-1]
                 
-                # --- ALTIN/GÜMÜŞ TL GRAMA ÇEVİR ---
+                # --- ALTIN/GÜMÜŞ TL GRAM ÇEVİRİSİ ---
                 if "GC=F" in s_clean or "SI=F" in s_clean:
-                    # Ons fiyatını Gram TL'ye çevir (Ons / 31.1034 * Dolar)
                     fiyatlar[s_clean] = (fiyat / 31.1034) * usd_try
                 else:
                     fiyatlar[s_clean] = fiyat
@@ -44,31 +43,29 @@ def piyasa_verisi_cek(semboller):
                 fiyatlar[s_clean] = 0.0
         except:
             fiyatlar[s_clean] = 0.0
-    
     return fiyatlar
 
 def portfoy_analiz(portfoy_listesi, p):
     if not portfoy_listesi: return pd.DataFrame()
     df = pd.DataFrame(portfoy_listesi)
     
-    # Sütun isimlerini küçük harfe sabitle (Hata önleyici)
+    # Sütun isimlerini küçült (Hata önleyici)
     df.columns = [str(c).lower().strip() for c in df.columns]
     
-    guncel_fiyatlar = []
+    g_list = []
     for _, row in df.iterrows():
+        # Excel'deki sembolü al
         sem = str(row.get('sembol', '')).strip().upper()
         
-        # SÖZLÜKTE ARA: Eğer sözlükte (p) bu sembol varsa fiyatını al, yoksa 0.0 yaz
-        # Bu satır sayesinde 'KeyError' (ALTIN hatası) artık ASLA oluşmaz.
+        # SÖZLÜKTE ARA: .get kullanarak hata almayı engelliyoruz
+        # Eğer sözlükte o sembol yoksa direkt 0 döner, sistem çökmez.
         fiyat = p.get(sem, 0.0)
-        guncel_fiyatlar.append(fiyat)
+        g_list.append(fiyat)
     
-    df['güncel'] = guncel_fiyatlar
+    df['güncel'] = g_list
     df['değer_tl'] = df['güncel'] * df['adet'].astype(float)
     df['maliyet_toplam'] = df['maliyet'].astype(float) * df['adet'].astype(float)
     df['kar_tl'] = df['değer_tl'] - df['maliyet_toplam']
-    
-    # Sıfıra bölünme hatasını engelle (+0.0001)
     df['% değişim'] = (df['kar_tl'] / (df['maliyet_toplam'] + 0.0001)) * 100
     
     return df
