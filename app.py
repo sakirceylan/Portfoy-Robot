@@ -17,22 +17,19 @@ def verileri_cek():
         df = pd.read_csv(url)
         df.columns = [str(c).strip().lower() for c in df.columns]
         
+        # Dolar kurunu anlık çekelim (Altın/Gümüşü TL'ye çevirmek için)
+        usd_try = yf.download("USDTRY=X", period="1d", interval="1m")['Close'].iloc[-1]
+        
         if 'sembol' in df.columns:
-            # Önce hücredeki boşlukları temizle ve büyük harf yap
             df['sembol'] = df['sembol'].astype(str).str.strip().str.upper()
             
-            # EĞER içinde '=' varsa (Altın/Gümüş gibi) dokunma, 
-            # YOKSA ve sonu .IS değilse .IS ekle.
-            df['sembol'] = df['sembol'].apply(lambda x: x if '=' in x or x.endswith('.IS') else x + '.IS')
+            # 1. ADIM: Hisse mi Altın mı ayır ve .IS ekle
+            df['sembol'] = df['sembol'].apply(lambda x: x if ('=' in x or x.endswith('.IS')) else x + '.IS')
             
         return df.dropna(subset=['sembol']).to_dict('records')
     except Exception as e:
         st.error(f"Veri çekme hatası: {e}")
         return []
-
-# DİKKAT: Bu satır fonksiyonun içinde olmamalı, en solda (başta) olmalı!
-portfoy_verileri = verileri_cek()
-
 
 def veri_kaydet_excel(yeni_portfoy):
     """Excel'i günceller."""
