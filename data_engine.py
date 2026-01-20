@@ -18,31 +18,36 @@ def piyasa_verisi_cek(semboller):
     fiyatlar = {}
     if not semboller: return fiyatlar
     try:
-        # 2026 Dolar kuru çekimi
+        # 2026 Güncel Dolar Kuru
         dolar_verisi = yf.download("USDTRY=X", period="1d", interval="1m")
         usd_try = dolar_verisi['Close'].iloc[-1]
     except:
-        usd_try = 45.50 # Hata durumunda varsayılan kur
+        usd_try = 45.50 # Hata olursa varsayılan
 
     for s in semboller:
         try:
             if not s or str(s) == 'nan': continue
-            veri = yf.download(s, period="1d", interval="1m")
+            # Temizleme
+            s_clean = str(s).strip().upper()
+            
+            # Veri Çekme
+            veri = yf.download(s_clean, period="1d", interval="1m")
             if not veri.empty:
                 fiyat = veri['Close'].iloc[-1]
-                # Altın ve Gümüşü TL Grama Çevir
-                if s == "GC=F":
-                    fiyatlar[s] = (fiyat / 31.1034) * usd_try
-                elif s == "SI=F":
-                    fiyatlar[s] = (fiyat / 31.1034) * usd_try
+                
+                # --- ALTIN/GÜMÜŞ TL ÇEVİRİ ---
+                if "GC=F" in s_clean:
+                    fiyatlar[s_clean] = (fiyat / 31.1034) * usd_try
+                elif "SI=F" in s_clean:
+                    fiyatlar[s_clean] = (fiyat / 31.1034) * usd_try
                 else:
-                    fiyatlar[s] = fiyat
+                    fiyatlar[s_clean] = fiyat
             else:
-                fiyatlar[s] = 0.0
+                fiyatlar[s_clean] = 0.0
         except:
-            fiyatlar[s] = 0.0
+            fiyatlar[s_clean] = 0.0
     
-    # Raporlama kısmında hata vermemesi için dolar kurunu da ekleyelim
+    # Sistemin hata vermemesi için yedek anahtarlar
     fiyatlar['USDTRY=X'] = usd_try
     return fiyatlar
 
@@ -50,41 +55,32 @@ def portfoy_analiz(portfoy_listesi, p):
     if not portfoy_listesi: return pd.DataFrame()
     df = pd.DataFrame(portfoy_listesi)
     
-    # Sütun isimlerini garantiye alalım
+    # Sütun isimlerini küçült (Hata önleyici)
     df.columns = [str(c).lower().strip() for c in df.columns]
     
     g_list = []
     for _, row in df.iterrows():
-        sem = str(row['sembol']).upper().strip()
+        sem = str(row.get('sembol', '')).strip().upper()
+        tip = str(row.get('tip', '')).lower()
         
-        # Fiyatı p sözlüğünden çek, bulamazsa yfinance ile anlık dene
-        fiyat = p.get(sem, 0.0)
-        
-        if fiyat == 0.0:
-            try:
-                h = yf.Ticker(sem).history(period="1d")
-                if not h.empty:
-                    fiyat = round(float(h['Close'].iloc[-1]), 2)
-            except:
-                fiyat = 0.0
+        # Akıllı Fiyat Bulucu
+        fiyat = 0.0
+        if "GC=F" in sem or "altin" in tip:
+            fiyat = p.get("GC=F", 0.0)
+        elif "SI=F" in sem or "gümüş" in tip:
+            fiyat = p.get("SI=F", 0.0)
+        else:
+            fiyat = p.get(sem, 0.0)
+            
         g_list.append(fiyat)
     
     df['güncel'] = g_list
-    df['değer_tl'] = df['güncel'] * df['adet']
-    df['kar_tl'] = df['değer_tl'] - (df['maliyet'] * df['adet'])
-    # Hata payını engellemek için +0.0001
-    df['% değişim'] = (df['kar_tl'] / (df['maliyet'] * df['adet'] + 0.0001)) * 100
-    
-    if 'hedef' not in df.columns: df['hedef'] = 0.0
-    df['hedef_durum'] = df.apply(lambda x: (x['güncel'] / x['hedef'] * 100) if x.get('hedef', 0) > 0 else 0, axis=1)
+    df['değer_tl'] = df['güncel'] * df['adet'].astype(float)
+    df['maliyet_toplam'] = df['maliyet'].astype(float) * df['adet'].astype(float)
+    df['kar_tl'] = df['değer_tl'] - df['maliyet_toplam']
+    df['% değişim'] = (df['kar_tl'] / (df['maliyet_toplam'] + 0.0001)) * 100
     
     return df
-
-def gecmis_kaydet(toplam_tl):
-    tarih = datetime.datetime.now().strftime("%Y-%m-%d")
-    gecmis_data = gecmis_yukle()
-    gecmis_data[tarih] = round(toplam_tl, 2)
-    with open("gecmis.json", "w") as f: json.dump(gecmis_data, f)
 
 def gecmis_yukle():
     if os.path.exists("gecmis.json"):
@@ -92,9 +88,6 @@ def gecmis_yukle():
             with open("gecmis.json", "r") as f: return json.load(f)
         except: return {}
     return {}
-
-def temettu_kaydet(temettu_listesi):
-    with open("temettu.json", "w") as f: json.dump(temettu_listesi, f)
 
 def temettu_yukle():
     if os.path.exists("temettu.json"):
