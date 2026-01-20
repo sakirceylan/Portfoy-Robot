@@ -121,38 +121,35 @@ with st.sidebar:
         st.success(f"{s_in} Başarıyla Eklendi!")
         st.rerun()
         
-   # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
+  # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
     st.divider()
     st.subheader("📑 Raporlama")
     
-    # Portföyde veri var mı kontrol et
     if st.session_state.get('portfoy'):
         try:
-            # 1. Mevcut portföydeki sembolleri listele
-            sembol_listesi = [v['sembol'] for v in st.session_state.portfoy]
+            # Hangi semboller varsa onları listeye al
+            sembol_listesi = [v['sembol'] for v in st.session_state.portfoy if v.get('sembol')]
             
-            # 2. Güncel fiyatları çek (Artık parantez dolu, hata vermez)
-            p_temp = piyasa_verisi_cek(sembol_listesi)
+            # Fiyatları çek (Parantezi asla boş bırakma!)
+            p = piyasa_verisi_cek(sembol_listesi)
             
-            # 3. Analiz tablosunu oluştur
-            df_export = portfoy_analiz(st.session_state.portfoy, p_temp)
+            # Analizi yap
+            df_export = portfoy_analiz(st.session_state.portfoy, p)
             
-            # 4. Excel dosyasına dönüştür
+            # Excel'e yaz
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                df_export.to_excel(writer, index=False, sheet_name='Portfoy_Analizi')
+                df_export.to_excel(writer, index=False, sheet_name='Analiz')
             
-            # 5. İndirme butonu
             st.download_button(
                 label="📥 Excel Raporu İndir", 
                 data=output.getvalue(), 
-                file_name=f"Portfoy_Rapor_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx", 
+                file_name="Portfoy_Raporu.xlsx", 
                 mime="application/vnd.ms-excel"
             )
         except Exception as e:
-            st.error(f"Rapor oluşturulurken bir hata oluştu: {e}")
-    else:
-        st.info("Rapor oluşturmak için portföy verisi bulunamadı.")
+            st.error(f"Rapor Hatası: {e}")
+
 
 # 4. Hesaplamalar
 p = piyasa_verisi_cek()
