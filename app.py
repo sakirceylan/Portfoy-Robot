@@ -121,18 +121,38 @@ with st.sidebar:
         st.success(f"{s_in} Başarıyla Eklendi!")
         st.rerun()
         
-    # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
+   # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
     st.divider()
     st.subheader("📑 Raporlama")
-    if st.session_state.portfoy:
-        # Mevcut veriyi excel'e dönüştür
-        p_temp = piyasa_verisi_cek()
-        df_export = portfoy_analiz(st.session_state.portfoy, p_temp)
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_export.to_excel(writer, index=False, sheet_name='Portfoy_Analizi')
-        st.download_button(label="📥 Excel Raporu İndir", data=output.getvalue(), 
-                           file_name="Portfoy_Rapor.xlsx", mime="application/vnd.ms-excel")
+    
+    # Portföyde veri var mı kontrol et
+    if st.session_state.get('portfoy'):
+        try:
+            # 1. Mevcut portföydeki sembolleri listele
+            sembol_listesi = [v['sembol'] for v in st.session_state.portfoy]
+            
+            # 2. Güncel fiyatları çek (Artık parantez dolu, hata vermez)
+            p_temp = piyasa_verisi_cek(sembol_listesi)
+            
+            # 3. Analiz tablosunu oluştur
+            df_export = portfoy_analiz(st.session_state.portfoy, p_temp)
+            
+            # 4. Excel dosyasına dönüştür
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_export.to_excel(writer, index=False, sheet_name='Portfoy_Analizi')
+            
+            # 5. İndirme butonu
+            st.download_button(
+                label="📥 Excel Raporu İndir", 
+                data=output.getvalue(), 
+                file_name=f"Portfoy_Rapor_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx", 
+                mime="application/vnd.ms-excel"
+            )
+        except Exception as e:
+            st.error(f"Rapor oluşturulurken bir hata oluştu: {e}")
+    else:
+        st.info("Rapor oluşturmak için portföy verisi bulunamadı.")
 
 # 4. Hesaplamalar
 p = piyasa_verisi_cek()
