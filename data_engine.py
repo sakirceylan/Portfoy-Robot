@@ -18,35 +18,29 @@ def veri_kaydet(v):
 def piyasa_verisi_cek(semboller):
     fiyatlar = {}
     try:
-        # Önce Dolar kurunu çekelim
-        usd_try_data = yf.download("USDTRY=X", period="1d", interval="1m")
-        usd_try = usd_try_data['Close'].iloc[-1]
+        # Dolar kurunu çek (Altın/Gümüş hesabı için lazım)
+        dolar_verisi = yf.download("USDTRY=X", period="1d", interval="1m")
+        usd_try = dolar_verisi['Close'].iloc[-1]
     except:
-        usd_try = 34.0  # Eğer kur çekilemezse hata vermesin diye sabit bir rakam (örnek)
+        usd_try = 34.20 # Kur çekilemezse varsayılan değer
 
-    for sembol in semboller:
+    for s in semboller:
         try:
-            # Tek bir sembol için fiyat çek
-            ticker = yf.Ticker(sembol)
-            veri = ticker.history(period="1d")
-            
+            veri = yf.download(s, period="1d", interval="1m")
             if not veri.empty:
-                guncel_fiyat = veri['Close'].iloc[-1]
-
-                # --- İŞTE O EKLEYECEĞİN KISIM BURASI ---
-                if sembol == "GC=F": # Ons Altın -> Gram Altın TL
-                    guncel_fiyat = (guncel_fiyat / 31.1034768) * usd_try
-                elif sembol == "SI=F": # Ons Gümüş -> Gram Gümüş TL
-                    guncel_fiyat = (guncel_fiyat / 31.1034768) * usd_try
-                # ----------------------------------------
-
-                fiyatlar[sembol] = guncel_fiyat
+                fiyat = veri['Close'].iloc[-1]
+                
+                # --- ALTIN VE GÜMÜŞÜ TL GRAMA ÇEVİR ---
+                if s == "GC=F": # Ons Altın -> Gram Altın TL
+                    fiyatlar[s] = (fiyat / 31.1034) * usd_try
+                elif s == "SI=F": # Ons Gümüş -> Gram Gümüş TL
+                    fiyatlar[s] = (fiyat / 31.1034) * usd_try
+                else:
+                    fiyatlar[s] = fiyat
             else:
-                fiyatlar[sembol] = 0
-        except Exception as e:
-            print(f"Hata: {sembol} çekilemedi -> {e}")
-            fiyatlar[sembol] = 0
-            
+                fiyatlar[s] = 0
+        except:
+            fiyatlar[s] = 0
     return fiyatlar
 
 def portfoy_analiz(portfoy_listesi, p):
