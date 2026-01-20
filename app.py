@@ -127,13 +127,11 @@ with st.sidebar:
     
     if st.session_state.get('portfoy'):
         try:
-            # 1. Sembolleri hazırla
+            # Sembolleri hazırla
             semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
-            
-            # 2. Fiyatları çek (Rapor için)
+            # Fiyatları çek
             p_data = piyasa_verisi_cek(semboller)
-            
-            # 3. Analiz yap
+            # Analiz yap
             df_export = portfoy_analiz(st.session_state.portfoy, p_data)
             
             output = io.BytesIO()
@@ -145,25 +143,31 @@ with st.sidebar:
             st.error(f"Rapor Hatası: {e}")
 
     # --- 4. HESAPLAMALAR (ANA EKRAN İÇİN) ---
-    # BURASI ÇOK KRİTİK: Parantezin içi dolu olmalı!
     if st.session_state.get('portfoy'):
         ana_semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
-        p = piyasa_verisi_cek(ana_semboller) # BOŞ PARANTEZİ DOLDURDUK
+        # Dolar kurunu çekmek için listeye ekliyoruz
+        if "USDTRY=X" not in ana_semboller:
+            ana_semboller.append("USDTRY=X")
+            
+        p = piyasa_verisi_cek(ana_semboller)
         df = portfoy_analiz(st.session_state.portfoy, p)
         
         # --- 5. ANA EKRAN GÖRSELLEŞTİRME ---
         st.title("💹 Finansal Portföy Yönetimi")
-        # Buradan sonra tablolarını ve grafiklerini df kullanarak çizdirebilirsin.
-    else:
-        st.info("Portföyünüzü görmek için lütfen Google Sheets verilerini yükleyin.")
 
-if not df.empty:
-    toplam_tl = df['Değer_TL'].sum()
-    toplam_usd = toplam_tl / (p['DOLAR'] if p['DOLAR'] > 0 else 1)
-    
-    # Üstteki metrikleri basıyoruz
-    ui.metrik_paneli(p, toplam_tl, toplam_usd, df['Kar_TL'].sum())
+        if not df.empty:
+            # Sütun isimlerini garantiye alalım (Küçük harf hatasını önlemek için)
+            toplam_tl = df['değer_tl'].sum()
+            
+            # Dolar kurunu p['USDTRY=X'] üzerinden alıyoruz
+            dolar_kuru = p.get('USDTRY=X', 34.20) 
+            toplam_usd = toplam_tl / (dolar_kuru if dolar_kuru > 0 else 1)
+            
+            # Üstteki metrikleri basıyoruz
+            # Not: ui.metrik_paneli fonksiyonuna p'yi ve hesaplanan değerleri gönderiyoruz
+            ui.metrik_paneli(p, toplam_tl, toplam_usd, df['kar_tl'].sum())
 
+            
 
     t1, t2, t3, t4, t5, t6= st.tabs(["📊 Genel Bakış", "🏦 Banka Yönetimi", "📅 Halka Arz", "💰 Temettü", "🚨 Alarmlar", "📰 Haber/KAP"])
     
