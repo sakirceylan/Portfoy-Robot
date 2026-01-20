@@ -8,6 +8,22 @@ import smtplib
 from email.mime.text import MIMEText
 import datetime
 
+from streamlit_gsheets import GSheetsConnection
+import yfinance as yf
+
+# Excel Bağlantısı
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Excel'den hisseleri çekme fonksiyonu
+def verileri_cek():
+    df = conn.read()
+    return df.to_dict('records')
+
+# Sayfa açıldığında verileri yükle
+if 'portfoy' not in st.session_state:
+    st.session_state.portfoy = verileri_cek()
+
+
 # MAİL GÖNDERME FONKSİYONU
 def mail_gonder(konu, icerik):
     # Şifreleri koddan sildik, Streamlit'in gizli ayarlarından çekeceğiz
