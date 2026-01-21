@@ -3,4 +3,6 @@ pandas
 yfinance
 plotly
 xlsxwriter
-openpyxl
+beautifulsoup4
+requests
+lxml
