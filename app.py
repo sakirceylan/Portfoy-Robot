@@ -7,39 +7,6 @@ import io # Raporlama için gerekli
 import smtplib
 from email.mime.text import MIMEText
 import datetime
-import yfinance as yf
-
-def verileri_cek():
-    try:
-        sheet_id = "1zL8_njN-CTRB3hiOig-BCs0zAYwXPQc1q4s4WuNoxJA"
-        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
-        
-        df = pd.read_csv(url)
-        df.columns = [str(c).strip().lower() for c in df.columns]
-        
-        # Dolar kurunu anlık çekelim (Altın/Gümüşü TL'ye çevirmek için)
-        usd_try = yf.download("USDTRY=X", period="1d", interval="1m")['Close'].iloc[-1]
-        
-        if 'sembol' in df.columns:
-            df['sembol'] = df['sembol'].astype(str).str.strip().str.upper()
-            
-            # 1. ADIM: Hisse mi Altın mı ayır ve .IS ekle
-            df['sembol'] = df['sembol'].apply(lambda x: x if ('=' in x or x.endswith('.IS')) else x + '.IS')
-            
-        return df.dropna(subset=['sembol']).to_dict('records')
-    except Exception as e:
-        st.error(f"Veri çekme hatası: {e}")
-        return []
-
-def veri_kaydet_excel(yeni_portfoy):
-    """Excel'i günceller."""
-    df = pd.DataFrame(yeni_portfoy)
-    conn.update(data=df)        
-        
-# Eski veri_yukle() yerine direkt Excel'den çekiyoruz
-if 'portfoy' not in st.session_state:
-    st.session_state.portfoy = verileri_cek()
-
 
 # MAİL GÖNDERME FONKSİYONU
 def mail_gonder(konu, icerik):
@@ -117,58 +84,39 @@ with st.sidebar:
             "alim_hedefi": 0.0      # Gizli varsayılan
         })
         from data_engine import veri_kaydet
-        veri_kaydet_excel(st.session_state.portfoy)
+        veri_kaydet(st.session_state.portfoy)
         st.success(f"{s_in} Başarıyla Eklendi!")
         st.rerun()
         
- # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
+    # --- 5. MADDE: EXCEL RAPOR ÇIKTISI ---
     st.divider()
     st.subheader("📑 Raporlama")
+    if st.session_state.portfoy:
+        # Mevcut veriyi excel'e dönüştür
+        p_temp = piyasa_verisi_cek()
+        df_export = portfoy_analiz(st.session_state.portfoy, p_temp)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_export.to_excel(writer, index=False, sheet_name='Portfoy_Analizi')
+        st.download_button(label="📥 Excel Raporu İndir", data=output.getvalue(), 
+                           file_name="Portfoy_Rapor.xlsx", mime="application/vnd.ms-excel")
+
+# 4. Hesaplamalar
+p = piyasa_verisi_cek()
+df = portfoy_analiz(st.session_state.portfoy, p)
+
+# 5. Ana Ekran
+st.title("💹 Finansal Portföy Yönetimi")
+
+if not df.empty:
+    toplam_tl = df['Değer_TL'].sum()
+    toplam_usd = toplam_tl / (p['DOLAR'] if p['DOLAR'] > 0 else 1)
     
-    if st.session_state.get('portfoy'):
-        try:
-            # Sembolleri topla
-            semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
-            # Fiyatları çek (ARTIK PARANTEZ DOLU!)
-            p_data = piyasa_verisi_cek(semboller)
-            # Analizi yap
-            df_export = portfoy_analiz(st.session_state.portfoy, p_data)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                df_export.to_excel(writer, index=False, sheet_name='Analiz')
-            
-            st.download_button(label="📥 Excel Raporu İndir", data=output.getvalue(), file_name="Portfoy_Analiz.xlsx")
-        except Exception as e:
-            st.error(f"Rapor Hatası: {e}")
+    # Üstteki metrikleri basıyoruz
+    ui.metrik_paneli(p, toplam_tl, toplam_usd, df['Kar_TL'].sum())
 
-    # --- 4. HESAPLAMALAR (ANA EKRAN İÇİN) ---
-    if st.session_state.get('portfoy'):
-        ana_semboller = [str(v['sembol']).upper().strip() for v in st.session_state.portfoy if v.get('sembol')]
-        if "USDTRY=X" not in ana_semboller: ana_semboller.append("USDTRY=X")
-        
-        # HATA VEREN 155. SATIRIN YERİNE BURASI GELDİ:
-        p = piyasa_verisi_cek(ana_semboller) 
-        df = portfoy_analiz(st.session_state.portfoy, p)
-        
-        # --- 5. ANA EKRAN GÖRSELLEŞTİRME ---
-        st.title("💹 Finansal Portföy Yönetimi")
 
-        if not df.empty:
-            toplam_tl = df['değer_tl'].sum()
-            dolar_kuru = p.get('USDTRY=X', 45.0) 
-            toplam_usd = toplam_tl / dolar_kuru
-            
-            # Üstteki mavi/yeşil kutular (Metrik Paneli)
-            ui.metrik_paneli(p, toplam_tl, toplam_usd, df['kar_tl'].sum())
-
-            # Sekmeleri oluştur
-            t1, t2, t3, t4, t5, t6 = st.tabs(["📊 Genel Bakış", "🏦 Banka Yönetimi", "📅 Halka Arz", "💰 Temettü", "🚨 Alarmlar", "📰 Haber/KAP"])
-            
-            
-    
-            
-
+    t1, t2, t3, t4, t5, t6= st.tabs(["📊 Genel Bakış", "🏦 Banka Yönetimi", "📅 Halka Arz", "💰 Temettü", "🚨 Alarmlar", "📰 Haber/KAP"])
     
     with t1:
         # --- 1. BİLDİRİM MERKEZİ (Tüm Alarmlar Burada) ---
@@ -307,7 +255,7 @@ with st.sidebar:
                                 
                                 # 4. VERİTABANINA KAYDET
                                 from data_engine import veri_kaydet
-                                veri_kaydet_excel(st.session_state.portfoy)
+                                veri_kaydet(st.session_state.portfoy)
                                 
                                 # 5. SAYFAYI YENİLE (Mailin tekrar tekrar gitmesini engeller)
                                 st.rerun()
@@ -378,13 +326,13 @@ with st.sidebar:
                     yeni_h = st.number_input("Yeni Hedef Fiyat:", min_value=0.0, step=0.1)
                     if st.button("Hedefi Kaydet"):
                         st.session_state.portfoy[sec_h]['hedef'] = yeni_h
-                        veri_kaydet_excel(st.session_state.portfoy); st.rerun()
+                        veri_kaydet(st.session_state.portfoy); st.rerun()
             with col2:
                 with st.expander("🗑️ Varlık Yönetimi (Silme)"):
                     silinecek = st.multiselect("Seç:", options=b_df.index, format_func=lambda x: f"{df.loc[x, 'sembol']}")
                     if st.button("Seçilenleri Sil", type="primary"):
                         st.session_state.portfoy = [v for i, v in enumerate(st.session_state.portfoy) if i not in silinecek]
-                        veri_kaydet_excel(st.session_state.portfoy); st.rerun()
+                        veri_kaydet(st.session_state.portfoy); st.rerun()
             
     with t3:
         # Halka arz takvimi (Dokunulmadı)
@@ -493,7 +441,7 @@ with st.sidebar:
                         st.session_state.portfoy[h_idx]['alim_hedefi'] = h_fiyat
                     
                     from data_engine import veri_kaydet
-                    veri_kaydet_excel(st.session_state.portfoy)
+                    veri_kaydet(st.session_state.portfoy)
                     st.success(f"✅ {df.loc[h_idx, 'sembol']} için alarm kuruldu!")
                     st.rerun()
             else:
@@ -563,7 +511,7 @@ with st.sidebar:
                     st.session_state.portfoy[secili_idx]['satis_hedefi'] = round(hedef_satis, 2)
                     st.session_state.portfoy[secili_idx]['alim_hedefi'] = round(stop_fiyat, 2)
                     from data_engine import veri_kaydet
-                    veri_kaydet_excel(st.session_state.portfoy)
+                    veri_kaydet(st.session_state.portfoy)
                     
                     # 2. Mail Gönder (Burada mail fonksiyonunu çağırıyoruz)
                     mail_konu = f"🤖 Robotik Strateji Kuruldu: {h_data['sembol']}"
